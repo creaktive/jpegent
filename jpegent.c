@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
     struct jpeg_decompress_struct cinfo;
     struct jpeg_error_mgr jerr;
     FILE *infile;
-    jvirt_barray_ptr* coeff_arrays;
+    jvirt_barray_ptr *coeff_arrays;
     JBLOCKARRAY buffer;
     JCOEFPTR blockptr;
     unsigned int x, y, i, j, c;
@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
         36, 43, 50, 57, 56, 49, 42, 35,
         28, 21, 14,  7,  6, 13, 20, 27,
         34, 41, 48, 40, 33, 26, 19, 12,
-        5,  4,  11, 18, 25, 32, 24, 17,
+        5,   4, 11, 18, 25, 32, 24, 17,
         10,  3,  2,  9, 16, 8,  1,  0
     };
     char *out;
