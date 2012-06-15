@@ -50,9 +50,11 @@ int main(int argc, char **argv) {
     jpeg_read_header(&cinfo, TRUE);
     coeff_arrays = jpeg_read_coefficients(&cinfo);
 
-    out = (char *) calloc(1, cinfo.comp_info->width_in_blocks * cinfo.comp_info->height_in_blocks * 3 + cinfo.comp_info->height_in_blocks);
+    out = (char *) calloc(1, cinfo.comp_info->width_in_blocks * cinfo.comp_info->height_in_blocks * 3 + cinfo.comp_info->height_in_blocks + 1);
 
     for (y = 0; y < cinfo.comp_info->height_in_blocks; y++) {
+        strcat(out, "\n");
+
         buffer = (cinfo.mem->access_virt_barray) ((j_common_ptr) &cinfo, coeff_arrays[0], y, (JDIMENSION) 1, FALSE);
         for (x = 0; x < cinfo.comp_info->width_in_blocks; x++) {
             blockptr = buffer[0][x];
@@ -67,18 +69,17 @@ int main(int argc, char **argv) {
             if (max < c)
                 max = c;
 
-            sprintf(chunk, "%2d ", c);
+            sprintf(chunk, " %2d", c);
             strcat(out, chunk);
         }
-        strcat(out, "\n");
     }
 
+    printf("P2\n%d\n%d\n%d", cinfo.comp_info->width_in_blocks, cinfo.comp_info->height_in_blocks, max);
+    puts(out);
+
+    free(out);
     jpeg_finish_decompress(&cinfo);
     jpeg_destroy_decompress(&cinfo);
-
-    printf("P2\n%d\n%d\n%d\n", cinfo.comp_info->width_in_blocks, cinfo.comp_info->height_in_blocks, max);
-    puts(out);
-    free(out);
 
     return 0;
 }
