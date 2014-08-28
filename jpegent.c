@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
 
     int freq[COEF_RANGE];
     double sum;
-    unsigned int ent;
+    unsigned int ent, max = 0, avg = 0;
 
     char *out, *p;
     unsigned int outlen, len;
@@ -86,6 +86,9 @@ int main(int argc, char **argv) {
                     sum += freq[i] * log2(freq[i]);
 
             ent = 256 * ((log2(DCTSIZE2) - sum / DCTSIZE2) / COEF_BITS);
+            if (max < ent)
+                max = ent;
+            avg += ent;
 
             snprintf(chunk, sizeof(chunk), " %3d", ent);
             len = strlen(chunk);
@@ -96,7 +99,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    printf("P2\n%d\n%d\n%d", w, h, 255);
+    printf("P2\n%d\n%d\n%d # %d", w, h, max, avg / (w * h));
     puts(out);
 
     free(out);
