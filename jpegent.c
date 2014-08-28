@@ -28,6 +28,8 @@ int main(int argc, char **argv) {
     double sum;
     unsigned int ent, max = 0, avg = 0;
 
+    unsigned int *zx, *zy, xsum = 0, zxsum = 0, ysum = 0, zysum = 0;
+
     char *out, *p;
     unsigned int outlen, len;
     char chunk[5]; // " %3d" + '\0'
@@ -51,6 +53,9 @@ int main(int argc, char **argv) {
     coeff_arrays = jpeg_read_coefficients(&cinfo);
     w = cinfo.comp_info->width_in_blocks;
     h = cinfo.comp_info->height_in_blocks;
+
+    zx = calloc(sizeof(zx), w);
+    zy = calloc(sizeof(zy), h);
 
     outlen = sizeof(char) * (w * h * (sizeof(chunk) - 1) + h + 1);
     out = (char *) malloc(outlen);
@@ -90,6 +95,9 @@ int main(int argc, char **argv) {
                 max = ent;
             avg += ent;
 
+            zx[x] += ent;
+            zy[y] += ent;
+
             snprintf(chunk, sizeof(chunk), " %3d", ent);
             len = strlen(chunk);
             if ((p + len) - out < outlen) {
@@ -99,10 +107,24 @@ int main(int argc, char **argv) {
         }
     }
 
-    printf("P2\n%d\n%d\n%d # %d", w, h, max, avg / (w * h));
+    for (i = 0; i < w; i++) {
+        zxsum += zx[i];
+        xsum += i * zx[i];
+    }
+
+    for (i = 0; i < h; i++) {
+        zysum += zy[i];
+        ysum += i * zy[i];
+    }
+
+    printf("P2\n%d\n%d\n%d\n", w, h, max);
+    printf("# %d %d %d", avg / (w * h), xsum / zxsum, ysum / zysum);
     puts(out);
 
     free(out);
+    free(zx);
+    free(zy);
+
     jpeg_finish_decompress(&cinfo);
     jpeg_destroy_decompress(&cinfo);
 
