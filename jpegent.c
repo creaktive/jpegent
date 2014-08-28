@@ -7,34 +7,33 @@
 #include <string.h>
 #include <jpeglib.h>
 #include <jerror.h>
+#include <math.h>
+
+#define COEF_BITS   11
+#define COEF_RANGE  2048
 
 int main(int argc, char **argv) {
     struct jpeg_decompress_struct cinfo;
     struct jpeg_error_mgr jerr;
     FILE *infile;
+
     jvirt_barray_ptr *coeff_arrays;
     JBLOCKARRAY buffer;
     JCOEFPTR blockptr;
-    unsigned int x, y, i, j, c;
-    int v;
-    unsigned int threshold = 0, max = 0;
-    const unsigned char revzigzag[64] = {
-        63, 62, 55, 47, 54, 61, 60, 53,
-        46, 39, 31, 38, 45, 52, 59, 58,
-        51, 44, 37, 30, 23, 15, 22, 29,
-        36, 43, 50, 57, 56, 49, 42, 35,
-        28, 21, 14,  7,  6, 13, 20, 27,
-        34, 41, 48, 40, 33, 26, 19, 12,
-        5,   4, 11, 18, 25, 32, 24, 17,
-        10,  3,  2,  9, 16, 8,  1,  0
-    };
-    char *out;
-    char chunk[8];
 
-    if (argc == 3) {
-        threshold = atoi(argv[2]);
-    } else if (argc == 1 || argc > 3) {
-        fprintf(stderr, "Usage: %s file.jpg [threshold]\n", argv[0]);
+    unsigned int x, y, w, h, i;
+    int v;
+
+    int freq[COEF_RANGE];
+    double sum;
+    unsigned int ent;
+
+    char *out, *p;
+    unsigned int outlen, len;
+    char chunk[5]; // " %3d" + '\0'
+
+    if (argc == 1 || argc > 2) {
+        fprintf(stderr, "Usage: %s file.jpg\n", argv[0]);
         return 1;
     }
 
@@ -48,33 +47,56 @@ int main(int argc, char **argv) {
 
     jpeg_stdio_src(&cinfo, infile);
     jpeg_read_header(&cinfo, TRUE);
+
     coeff_arrays = jpeg_read_coefficients(&cinfo);
+    w = cinfo.comp_info->width_in_blocks;
+    h = cinfo.comp_info->height_in_blocks;
 
-    out = (char *) calloc(1, cinfo.comp_info->width_in_blocks * cinfo.comp_info->height_in_blocks * 3 + cinfo.comp_info->height_in_blocks + 1);
+    outlen = sizeof(char) * (w * h * (sizeof(chunk) - 1) + h + 1);
+    out = (char *) malloc(outlen);
+    p = out;
 
-    for (y = 0; y < cinfo.comp_info->height_in_blocks; y++) {
-        strcat(out, "\n");
+    for (y = 0; y < h; y++) {
+        *(p++) = '\n';
 
-        buffer = (cinfo.mem->access_virt_barray) ((j_common_ptr) &cinfo, coeff_arrays[0], y, (JDIMENSION) 1, FALSE);
-        for (x = 0; x < cinfo.comp_info->width_in_blocks; x++) {
+        buffer = (cinfo.mem->access_virt_barray)
+            ((j_common_ptr) &cinfo, coeff_arrays[0], y, (JDIMENSION) 1, FALSE);
+
+        for (x = 0; x < w; x++) {
             blockptr = buffer[0][x];
-            for (i = 0; i < sizeof(revzigzag); i++) {
-                j = revzigzag[i];
-                v = (int) blockptr[j] * (int) cinfo.comp_info->quant_table->quantval[j];
-                if (abs(v) > threshold)
-                    break;
+
+            for (i = 0; i < COEF_RANGE; i++)
+                freq[i] = 0;
+
+            for (i = 0; i < DCTSIZE2; i++) {
+                v = blockptr[i] * cinfo.comp_info->quant_table->quantval[i];
+                freq[v + COEF_RANGE / 2]++;
             }
+            /*
+                fprintf(stderr, " %4d", v);
+                if ((i + 1) % DCTSIZE == 0)
+                    fprintf(stderr, "\n");
+            }
+            fprintf(stderr, "\n");
+            */
 
-            c = (int) sizeof(revzigzag) - i;
-            if (max < c)
-                max = c;
+            sum = 0;
+            for (i = 0; i < COEF_RANGE; i++)
+                if (freq[i])
+                    sum += freq[i] * log2(freq[i]);
 
-            sprintf(chunk, " %2d", c);
-            strcat(out, chunk);
+            ent = 256 * ((log2(DCTSIZE2) - sum / DCTSIZE2) / COEF_BITS);
+
+            snprintf(chunk, sizeof(chunk), " %3d", ent);
+            len = strlen(chunk);
+            if ((p + len) - out < outlen) {
+                memcpy(p, chunk, len);
+                p += len;
+            }
         }
     }
 
-    printf("P2\n%d\n%d\n%d", cinfo.comp_info->width_in_blocks, cinfo.comp_info->height_in_blocks, max);
+    printf("P2\n%d\n%d\n%d", w, h, 255);
     puts(out);
 
     free(out);
