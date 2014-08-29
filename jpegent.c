@@ -13,6 +13,8 @@
 #define COEF_RANGE  2048
 
 int main(int argc, char **argv) {
+    int hipass = 1;
+
     struct jpeg_decompress_struct cinfo;
     struct jpeg_error_mgr jerr;
     FILE *infile;
@@ -21,7 +23,7 @@ int main(int argc, char **argv) {
     JBLOCKARRAY buffer;
     JCOEFPTR blockptr;
 
-    unsigned int x, y, w, h, i;
+    unsigned int x, y, w, h, i, l;
     int v;
 
     int freq[COEF_RANGE];
@@ -34,10 +36,17 @@ int main(int argc, char **argv) {
     unsigned int outlen, len;
     char chunk[5]; // " %3d" + '\0'
 
-    if (argc == 1 || argc > 2) {
-        fprintf(stderr, "Usage: %s file.jpg\n", argv[0]);
+    if (argc == 3) {
+        hipass = atoi(argv[2]);
+        if (hipass < 0 || hipass >= DCTSIZE2 - 1) {
+            fprintf(stderr, "0 <= hipass < %d!\n", DCTSIZE2 - 1);
+            return 1;
+        }
+    } else if (argc == 1 || argc > 3) {
+        fprintf(stderr, "Usage: %s file.jpg [hipass=1]\n", argv[0]);
         return 1;
     }
+    l = DCTSIZE2 - hipass;
 
     cinfo.err = jpeg_std_error(&jerr);
     jpeg_create_decompress(&cinfo);
@@ -73,7 +82,7 @@ int main(int argc, char **argv) {
             for (i = 0; i < COEF_RANGE; i++)
                 freq[i] = 0;
 
-            for (i = 0; i < DCTSIZE2; i++) {
+            for (i = hipass; i < DCTSIZE2; i++) {
                 v = blockptr[i] * cinfo.comp_info->quant_table->quantval[i];
                 freq[v + COEF_RANGE / 2]++;
             }
@@ -90,7 +99,7 @@ int main(int argc, char **argv) {
                 if (freq[i])
                     sum += freq[i] * log2(freq[i]);
 
-            ent = 256 * ((log2(DCTSIZE2) - sum / DCTSIZE2) / COEF_BITS);
+            ent = 256 * ((log2(l) - sum / l) / COEF_BITS);
             if (max < ent)
                 max = ent;
             avg += ent;
