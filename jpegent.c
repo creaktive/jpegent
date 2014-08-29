@@ -23,8 +23,18 @@ int main(int argc, char **argv) {
     JBLOCKARRAY buffer;
     JCOEFPTR blockptr;
 
-    unsigned int x, y, w, h, i, l;
+    unsigned int x, y, w, h, i, j, l;
     int v;
+    static const unsigned int jpeg_zigzag_order[DCTSIZE2] = {
+       0,  1,  5,  6, 14, 15, 27, 28,
+       2,  4,  7, 13, 16, 26, 29, 42,
+       3,  8, 12, 17, 25, 30, 41, 43,
+       9, 11, 18, 24, 31, 40, 44, 53,
+      10, 19, 23, 32, 39, 45, 52, 54,
+      20, 22, 33, 38, 46, 51, 55, 60,
+      21, 34, 37, 47, 50, 56, 59, 61,
+      35, 36, 48, 49, 57, 58, 62, 63
+    };
 
     int freq[COEF_RANGE];
     double sum;
@@ -82,9 +92,12 @@ int main(int argc, char **argv) {
             for (i = 0; i < COEF_RANGE; i++)
                 freq[i] = 0;
 
-            for (i = hipass; i < DCTSIZE2; i++) {
-                v = blockptr[i] * cinfo.comp_info->quant_table->quantval[i];
-                freq[v + COEF_RANGE / 2]++;
+            for (i = 0; i < DCTSIZE2; i++) {
+                j = jpeg_zigzag_order[i];
+                if (j >= hipass) {
+                    v = blockptr[j] * cinfo.comp_info->quant_table->quantval[j];
+                    freq[v + COEF_RANGE / 2]++;
+                }
             }
             /*
                 fprintf(stderr, " %4d", v);
