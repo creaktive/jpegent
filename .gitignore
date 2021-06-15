@@ -1,0 +1,4 @@
+jpegent
+*.o
+*.jpg
+*.pgm
