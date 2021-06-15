@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-Wall -Ofast
 # CFLAGS=-Wall -g
 # DEFS=
-LDFLAGS=-ljpeg
+LDFLAGS=-ljpeg -lm
 RM=rm -f
 
 # Uncomment under Win32 (CYGWIN/MinGW):
