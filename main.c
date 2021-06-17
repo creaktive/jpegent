@@ -40,8 +40,12 @@ int main(int argc, char **argv) {
         return 5;
     }
 
-    jpeg_entropy(jpeg_data, sb.st_size, hipass);
+    char *result = jpeg_entropy(jpeg_data, sb.st_size, hipass);
+
+    puts(result);
+
     free(jpeg_data);
+    free(result);
 
     return 0;
 }

@@ -9,9 +9,9 @@
 
 #define COEF_BITS   11
 #define COEF_RANGE  2048
-#define HEADER_LEN  40
+#define HEADER_LEN  64
 
-void jpeg_entropy(const unsigned char *jpeg_data, size_t jpeg_size, int hipass) {
+char *jpeg_entropy(const unsigned char *jpeg_data, size_t jpeg_size, int hipass) {
     static const int jpeg_zigzag_order[DCTSIZE2] = {
        0,  1,  5,  6, 14, 15, 27, 28,
        2,  4,  7, 13, 16, 26, 29, 42,
@@ -102,9 +102,10 @@ void jpeg_entropy(const unsigned char *jpeg_data, size_t jpeg_size, int hipass) 
         ysum += i * zy[i];
     }
 
-    printf("P2\n%d\n%d\n%d\n", w, h, max);
-    printf("# %d %d %d", avg / (w * h), xsum / zxsum, ysum / zysum);
-    puts(out);
+    int resultlen = HEADER_LEN + outlen;
+    char *result = (char *) malloc(resultlen);
+    snprintf(result, resultlen, "P2\n%d\n%d\n%d\n# %d %d %d", w, h, max, avg / (w * h), xsum / zxsum, ysum / zysum);
+    strncat(result, out, outlen);
 
     free(out);
     free(zx);
@@ -112,4 +113,6 @@ void jpeg_entropy(const unsigned char *jpeg_data, size_t jpeg_size, int hipass) 
 
     jpeg_abort_decompress(&cinfo);
     jpeg_destroy_decompress(&cinfo);
+
+    return result;
 }
