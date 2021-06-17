@@ -1,23 +1,18 @@
-/*
- * gcc -O3 -o jpegent jpegent.c -ljpeg
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <jpeglib.h>
+
 #include <jerror.h>
+#include <jpeglib.h>
+
 #include <math.h>
 
 #define COEF_BITS   11
 #define COEF_RANGE  2048
 
-int main(int argc, char **argv) {
-    int hipass = 1;
-
+void jpeg_entropy(const unsigned char *jpeg_data, size_t jpeg_size, int hipass) {
     struct jpeg_decompress_struct cinfo;
     struct jpeg_error_mgr jerr;
-    FILE *infile;
 
     jvirt_barray_ptr *coeff_arrays;
     JBLOCKARRAY buffer;
@@ -46,27 +41,12 @@ int main(int argc, char **argv) {
     unsigned int outlen, len;
     char chunk[5]; // " %3d" + '\0'
 
-    if (argc == 3) {
-        hipass = atoi(argv[2]);
-        if (hipass < 0 || hipass >= DCTSIZE2 - 1) {
-            fprintf(stderr, "0 <= hipass < %d!\n", DCTSIZE2 - 1);
-            return 1;
-        }
-    } else if (argc == 1 || argc > 3) {
-        fprintf(stderr, "Usage: %s file.jpg [hipass=1]\n", argv[0]);
-        return 1;
-    }
     l = DCTSIZE2 - hipass;
 
     cinfo.err = jpeg_std_error(&jerr);
     jpeg_create_decompress(&cinfo);
 
-    if ((infile = fopen(argv[1], "rb")) == NULL) {
-        fprintf(stderr, "Can't open %s\n", argv[1]);
-        return 1;
-    }
-
-    jpeg_stdio_src(&cinfo, infile);
+    jpeg_mem_src(&cinfo, jpeg_data, jpeg_size);
     jpeg_read_header(&cinfo, TRUE);
 
     coeff_arrays = jpeg_read_coefficients(&cinfo);
@@ -149,6 +129,4 @@ int main(int argc, char **argv) {
 
     jpeg_finish_decompress(&cinfo);
     jpeg_destroy_decompress(&cinfo);
-
-    return 0;
 }
