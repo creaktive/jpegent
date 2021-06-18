@@ -20,4 +20,7 @@ $(JPEGENT): jpegent.o main.o
 	$(CC) ${CFLAGS} ${DEFS} -c $*.c
 
 clean:
-	$(RM) $(JPEGENT) *.o core
+	$(RM) $(JPEGENT) *.o jpegent.js jpegent.wasm core
+
+emscripten:
+	emcc -O3 -s USE_LIBJPEG=1 -s MODULARIZE -s EXPORTED_RUNTIME_METHODS=ccall -s EXPORTED_FUNCTIONS='["_jpeg_entropy","_malloc"]' -o jpegent.js jpegent.c
