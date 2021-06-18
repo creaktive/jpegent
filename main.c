@@ -41,11 +41,15 @@ int main(int argc, char **argv) {
     }
 
     char *result = jpeg_entropy(jpeg_data, sb.st_size, hipass);
-
-    puts(result);
-
     free(jpeg_data);
-    free(result);
+
+    if (result != NULL) {
+        puts(result);
+        free(result);
+    } else {
+        fprintf(stderr, "File %s does not seem to be a normal JPEG\n", argv[1]);
+        return 5;
+    }
 
     return 0;
 }

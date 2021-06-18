@@ -1,3 +1,4 @@
+#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,6 +11,21 @@
 #define COEF_BITS   11
 #define COEF_RANGE  2048
 #define HEADER_LEN  64
+
+struct my_error_mgr {
+    struct jpeg_error_mgr pub;  /* "public" fields */
+    jmp_buf setjmp_buffer;      /* for return to caller */
+};
+typedef struct my_error_mgr *my_error_ptr;
+
+void my_error_exit(j_common_ptr cinfo) {
+    /* cinfo->err really points to a my_error_mgr struct, so coerce pointer */
+    my_error_ptr myerr = (my_error_ptr) cinfo->err;
+    /* Always display the message. */
+    /* We could postpone this until after returning, if we chose. */
+    /* (*cinfo->err->output_message) (cinfo); */
+    longjmp(myerr->setjmp_buffer, 1);
+}
 
 char *jpeg_entropy(const unsigned char *jpeg_data, size_t jpeg_size, int hipass) {
     static const int jpeg_zigzag_order[DCTSIZE2] = {
@@ -31,12 +47,22 @@ char *jpeg_entropy(const unsigned char *jpeg_data, size_t jpeg_size, int hipass)
     int l = DCTSIZE2 - hipass;
 
     struct jpeg_decompress_struct cinfo;
-    struct jpeg_error_mgr jerr;
-    cinfo.err = jpeg_std_error(&jerr);
-    jpeg_create_decompress(&cinfo);
+    struct my_error_mgr jerr;
+    cinfo.err = jpeg_std_error(&jerr.pub);
+    jerr.pub.error_exit = my_error_exit;
+    /* Establish the setjmp return context for my_error_exit to use. */
+    if (setjmp(jerr.setjmp_buffer)) {
+        /* If we get here, the JPEG code has signaled an error.
+         * We need to clean up the JPEG object, close the input file, and return.
+         */
+        jpeg_destroy_decompress(&cinfo);
+        return NULL;
+    }
 
+    jpeg_create_decompress(&cinfo);
     jpeg_mem_src(&cinfo, jpeg_data, jpeg_size);
-    jpeg_read_header(&cinfo, TRUE);
+    if (jpeg_read_header(&cinfo, TRUE) != 1)
+        return NULL;
 
     jvirt_barray_ptr *coeff_arrays = jpeg_read_coefficients(&cinfo);
     int w = cinfo.comp_info->width_in_blocks;
